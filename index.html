@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Edge Markdown Engine</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; display: flex; gap: 2rem; }
+    textarea { width: 50%; height: 300px; font-family: monospace; padding: 1rem; }
+    #output { width: 50%; border: 1px solid #ccc; padding: 1rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <textarea id="editor" placeholder="Type Markdown here... (e.g., # Hello Edge)"></textarea>
+  <div id="output"></div>
+
+  <script type="module">
+    // Import the generated JavaScript bindings and init function from the pkg folder
+    import init, { parse_markdown } from './pkg/edge_markdown_parser.js';
+
+    async function run() {
+      // Initialize the Wasm module memory buffer
+      await init();
+
+      const editor = document.getElementById('editor');
+      const output = document.getElementById('output');
+
+      // Re-parse markdown whenever the user types
+      editor.addEventListener('input', () => {
+        output.innerHTML = parse_markdown(editor.value);
+      });
+    }
+
+    run();
+  </script>
+</body>
+</html>
