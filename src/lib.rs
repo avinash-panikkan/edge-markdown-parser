@@ -45,23 +45,60 @@ fn parse_heading(line: &str) -> Option<(usize, &str)> {
     None
 }
 
+/// Helper function to check if a line is an unordered list item (* or -)
+fn parse_list_item(line: &str) -> Option<&str> {
+    let trimmed = line.trim();
+    if let Some(content) = trimmed.strip_prefix("* ") {
+        Some(content)
+    } else if let Some(content) = trimmed.strip_prefix("- ") {
+        Some(content)
+    } else {
+        None
+    }
+}
+
 /// Core parsing function exposed to JavaScript/WebAssembly
 #[wasm_bindgen]
 pub fn parse_markdown(input: &str) -> String {
     let mut html_output = String::new();
+    let mut in_list = false;
 
     for line in input.lines() {
         if line.trim().is_empty() {
-            continue; // Skip empty lines
+            if in_list {
+                html_output.push_str("</ul>\n");
+                in_list = false;
+            }
+            continue;
         }
 
-        if let Some((level, heading_content)) = parse_heading(line) {
-            let parsed_inline = parse_inline(heading_content);
-            html_output.push_str(&format!("<h{}>{}</h{}>\n", level, parsed_inline, level));
+        if let Some(item_content) = parse_list_item(line) {
+            if !in_list {
+                html_output.push_str("<ul>\n");
+                in_list = true;
+            }
+            let parsed_inline = parse_inline(item_content);
+            html_output.push_str(&format!("<li>{}</li>\n", parsed_inline));
         } else {
-            let parsed_inline = parse_inline(line);
-            html_output.push_str(&format!("<p>{}</p>\n", parsed_inline));
+            // Close list if previously inside one
+            if in_list {
+                html_output.push_str("</ul>\n");
+                in_list = false;
+            }
+
+            if let Some((level, heading_content)) = parse_heading(line) {
+                let parsed_inline = parse_inline(heading_content);
+                html_output.push_str(&format!("<h{}>{}</h{}>\n", level, parsed_inline, level));
+            } else {
+                let parsed_inline = parse_inline(line);
+                html_output.push_str(&format!("<p>{}</p>\n", parsed_inline));
+            }
         }
+    }
+
+    // Close any dangling list at the end of input
+    if in_list {
+        html_output.push_str("</ul>\n");
     }
 
     html_output
@@ -82,6 +119,20 @@ mod tests {
     fn test_heading_with_inline_styles() {
         let markdown = "## Heading with **Bold** and *Italic*";
         let expected = "<h2>Heading with <b>Bold</b> and <i>Italic</i></h2>\n";
+        assert_eq!(parse_markdown(markdown), expected);
+    }
+
+    #[test]
+    fn test_unordered_list() {
+        let markdown = "* First item\n* Second item with **Bold**\n- Third item with *Italic*";
+        let expected = "<ul>\n<li>First item</li>\n<li>Second item with <b>Bold</b></li>\n<li>Third item with <i>Italic</i></li>\n</ul>\n";
+        assert_eq!(parse_markdown(markdown), expected);
+    }
+
+    #[test]
+    fn test_list_surrounded_by_paragraphs() {
+        let markdown = "Intro text\n* List item\nOutro text";
+        let expected = "<p>Intro text</p>\n<ul>\n<li>List item</li>\n</ul>\n<p>Outro text</p>\n";
         assert_eq!(parse_markdown(markdown), expected);
     }
 }
