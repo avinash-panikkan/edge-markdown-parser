@@ -79,4 +79,18 @@ mod tests {
         let expected = "<p>Intro text</p>\n<ul>\n<li>List item</li>\n</ul>\n<p>Outro text</p>\n";
         assert_eq!(parse_markdown(markdown), expected);
     }
+
+    #[test]
+    fn test_inline_links_and_images() {
+        let markdown = "Visit [GitHub](https://github.com) or view ![Logo](https://example.com/logo.png)";
+        let expected = "<p>Visit <a href=\"https://github.com\">GitHub</a> or view <img src=\"https://example.com/logo.png\" alt=\"Logo\" /></p>\n";
+        assert_eq!(parse_markdown(markdown), expected);
+    }
+
+    #[test]
+    fn test_image_precedence_over_link() {
+        let markdown = "![Banner Image](https://example.com/banner.png)";
+        let expected = "<p><img src=\"https://example.com/banner.png\" alt=\"Banner Image\" /></p>\n";
+        assert_eq!(parse_markdown(markdown), expected);
+    }
 }
